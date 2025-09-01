@@ -1,0 +1,48 @@
+/// فایل مدل دیتابیس Prisma برای PostgreSQL
+/// هر خط با توضیح فارسی همراه است تا فرآیند یادگیری ساده شود.
+
+generator client {
+  provider = "prisma-client-js"   // تولید کلاینت جاوااسکریپتی Prisma
+}
+
+datasource db {
+  provider = "postgresql"          // نوع دیتابیس
+  url      = env("DATABASE_URL")   // آدرس اتصال از .env
+}
+
+/// مدل کاربر اصلی سیستم
+model User {
+  id        String   @id @default(uuid())          // شناسه یکتا (UUID)
+  name      String                                   // نام کاربر
+  email     String   @unique                         // ایمیل یکتا
+  password  String                                   // رمز عبور هش شده
+  role      Role     @default(USER)                  // نقش کاربر (پیش‌فرض USER)
+  avatar    String?                                  // مسیر فایل آواتار (اختیاری)
+  createdAt DateTime @default(now())                 // زمان ایجاد رکورد
+
+  // ارتباط یک‌به‌چند با RefreshToken (هر کاربر می‌تواند چند رفرش‌توکن داشته باشد)
+  refreshTokens RefreshToken[]
+
+  @@map("users")                                     // نام جدول در دیتابیس (اختیاری)
+}
+
+/// جدول نگهداری رفرش توکن‌ها (به‌صورت هش‌شده ذخیره می‌کنیم)
+model RefreshToken {
+  id          String   @id @default(uuid())         // شناسه یکتا
+  tokenHash   String                                  // هش رفرش توکن (برای امنیت)
+  userId      String                                  // کلید خارجی به کاربر
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())               // زمان ایجاد
+  expiresAt   DateTime                               // زمان انقضا
+  revoked     Boolean  @default(false)               // آیا باطل شده است؟
+  replacedBy  String?                                 // اگر چرخش انجام شد، شناسه توکن جایگزین
+
+  @@index([userId])                                  // ایندکس برای جست‌وجو
+  @@map("refresh_tokens")                            // نام جدول
+}
+
+/// نقش‌های مجاز برای کنترل دسترسی
+enum Role {
+  ADMIN
+  USER
+}
